@@ -150,9 +150,9 @@
     .empty-t { font-size: 17px; font-weight: 600; color: var(--text); }
     .empty-d { font-size: 14px; }
 
-    /* PWA TOAST */
-    #pwa-toast { position: fixed; z-index: 100; bottom: 90px; left: 16px; right: 16px; background: var(--s1); border: 1px solid var(--border); border-radius: 16px; padding: 16px; box-shadow: 0 8px 40px rgba(0,0,0,.6); display: flex; gap: 14px; align-items: flex-start; transform: translateY(180px); opacity: 0; transition: transform .4s cubic-bezier(.34,1.56,.64,1), opacity .3s; }
-    #pwa-toast.show { transform: translateY(0); opacity: 1; }
+    /* PWA TOAST — top of screen, pointer-events:none when hidden */
+    #pwa-toast { position: fixed; z-index: 100; top: 16px; left: 16px; right: 16px; background: var(--s1); border: 1px solid var(--border); border-radius: 16px; padding: 16px; box-shadow: 0 8px 40px rgba(0,0,0,.6); display: flex; gap: 14px; align-items: flex-start; transform: translateY(-180px); opacity: 0; pointer-events: none; transition: transform .4s cubic-bezier(.34,1.56,.64,1), opacity .3s; }
+    #pwa-toast.show { transform: translateY(0); opacity: 1; pointer-events: auto; }
     .pwa-ico { font-size: 34px; line-height: 1; flex-shrink: 0; }
     .pwa-txt { flex: 1; }
     .pwa-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
@@ -161,9 +161,9 @@
     .pwa-ok { flex: 1; padding: 9px; border-radius: 8px; border: none; background: var(--accent); color: #fff; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
     .pwa-no { flex: 1; padding: 9px; border-radius: 8px; border: none; background: var(--s2); color: var(--text2); font-family: inherit; font-size: 14px; cursor: pointer; }
 
-    /* SNACKBAR */
-    #snackbar { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--s2); color: var(--text); padding: 10px 20px; border-radius: 10px; font-size: 14px; z-index: 200; transition: transform .3s, opacity .3s; opacity: 0; white-space: nowrap; border: 1px solid var(--border); }
-    #snackbar.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    /* SNACKBAR — top of screen, pointer-events:none when hidden */
+    #snackbar { position: fixed; top: 16px; left: 50%; transform: translateX(-50%) translateY(-80px); background: var(--s2); color: var(--text); padding: 10px 20px; border-radius: 10px; font-size: 14px; z-index: 200; transition: transform .3s, opacity .3s; opacity: 0; pointer-events: none; white-space: nowrap; border: 1px solid var(--border); }
+    #snackbar.show { transform: translateX(-50%) translateY(0); opacity: 1; pointer-events: auto; }
 
     /* SPINNER */
     .spin { width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; animation: rot .7s linear infinite; }
@@ -209,11 +209,15 @@
 <!-- MAIN — CHAT LIST -->
 <div id="sc-main" class="screen">
   <div class="hdr"><div class="hdr-title">Чаты</div></div>
+  <div class="search-wrap">
+    <input class="search-inp" id="main-search" type="text" placeholder="🔍 Поиск по никнейму..."
+           autocomplete="off" autocapitalize="none" spellcheck="false" oninput="onMainSearch()">
+  </div>
   <div class="list" id="chat-list">
     <div class="empty">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 10h8M8 14h5M21 11.5c0 4.14-4.03 7.5-9 7.5a9.86 9.86 0 0 1-4.29-.97L3 21l1.91-4.38A7.17 7.17 0 0 1 3 11.5C3 7.36 7.03 4 12 4s9 3.36 9 7.5z" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <div class="empty-t">Нет чатов</div>
-      <div class="empty-d">Найди друга в поиске или поделись ссылкой</div>
+      <div class="empty-d">Найди друга через поиск или поделись ссылкой</div>
     </div>
   </div>
   <div class="bnav">
@@ -221,35 +225,6 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 10h8M8 14h5M21 11.5c0 4.14-4.03 7.5-9 7.5a9.86 9.86 0 0 1-4.29-.97L3 21l1.91-4.38A7.17 7.17 0 0 1 3 11.5C3 7.36 7.03 4 12 4s9 3.36 9 7.5z" stroke-linecap="round" stroke-linejoin="round"/></svg>
       Чаты
       <span class="badge" id="total-badge" style="display:none"></span>
-    </button>
-    <button class="bnav-item" data-nav="search" onclick="showTab('search')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35" stroke-linecap="round"/></svg>
-      Поиск
-    </button>
-    <button class="bnav-item" data-nav="profile" onclick="showTab('profile')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.58-7 8-7s8 3 8 7" stroke-linecap="round"/></svg>
-      Профиль
-    </button>
-  </div>
-</div>
-
-<!-- SEARCH -->
-<div id="sc-search" class="screen">
-  <div class="hdr"><div class="hdr-title">Поиск людей</div></div>
-  <div class="search-wrap">
-    <input class="search-inp" id="search-inp" type="text" placeholder="Введи никнейм..." autocomplete="off" autocapitalize="none" spellcheck="false" oninput="onSearch()">
-  </div>
-  <div class="list" id="search-res">
-    <div class="hint"><div class="hint-icon">🔍</div>Введи никнейм для поиска</div>
-  </div>
-  <div class="bnav">
-    <button class="bnav-item" data-nav="main" onclick="showTab('main')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 10h8M8 14h5M21 11.5c0 4.14-4.03 7.5-9 7.5a9.86 9.86 0 0 1-4.29-.97L3 21l1.91-4.38A7.17 7.17 0 0 1 3 11.5C3 7.36 7.03 4 12 4s9 3.36 9 7.5z" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      Чаты
-    </button>
-    <button class="bnav-item on" data-nav="search" onclick="showTab('search')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35" stroke-linecap="round"/></svg>
-      Поиск
     </button>
     <button class="bnav-item" data-nav="profile" onclick="showTab('profile')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.58-7 8-7s8 3 8 7" stroke-linecap="round"/></svg>
@@ -293,10 +268,6 @@
     <button class="bnav-item" data-nav="main" onclick="showTab('main')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 10h8M8 14h5M21 11.5c0 4.14-4.03 7.5-9 7.5a9.86 9.86 0 0 1-4.29-.97L3 21l1.91-4.38A7.17 7.17 0 0 1 3 11.5C3 7.36 7.03 4 12 4s9 3.36 9 7.5z" stroke-linecap="round" stroke-linejoin="round"/></svg>
       Чаты
-    </button>
-    <button class="bnav-item" data-nav="search" onclick="showTab('search')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35" stroke-linecap="round"/></svg>
-      Поиск
     </button>
     <button class="bnav-item on" data-nav="profile" onclick="showTab('profile')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.58-7 8-7s8 3 8 7" stroke-linecap="round"/></svg>
@@ -376,6 +347,7 @@ let searchTimer   = null;
 let prevChatTs    = {};      // chatId -> updatedAt.seconds
 let firstLoad     = true;
 let unreadCounts  = {};      // chatId -> number
+let lastChatDocs  = [];      // cached snapshot docs for inline search
 
 // SETTINGS
 let settings = { notif: true, sound: true, vibro: true,
@@ -534,9 +506,8 @@ function refreshToggles() {
 // TABS
 function showTab(tab) {
   curTab = tab;
-  ['main','search','profile'].forEach(t => document.getElementById('sc-' + t).classList.toggle('active', t===tab));
+  ['main','profile'].forEach(t => document.getElementById('sc-' + t).classList.toggle('active', t===tab));
   document.querySelectorAll('.bnav-item').forEach(el => el.classList.toggle('on', el.dataset.nav===tab));
-  if (tab==='search') setTimeout(() => document.getElementById('search-inp').focus(), 120);
 }
 
 // UNREAD
@@ -583,10 +554,18 @@ function subscribeChats() {
 }
 
 function renderChatList(docs) {
+  lastChatDocs = docs; // cache for search filtering
+  // If a search is active, re-run search instead of overwriting results
+  const q = document.getElementById('main-search')?.value.trim().toLowerCase();
+  if (q) { onMainSearch(); return; }
+  _paintChatList(docs);
+}
+
+function _paintChatList(docs) {
   const sorted = [...docs].sort((a,b)=>(b.data().updatedAt?.seconds||0)-(a.data().updatedAt?.seconds||0));
   const el = document.getElementById('chat-list');
   if (!sorted.length) {
-    el.innerHTML = `<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 10h8M8 14h5M21 11.5c0 4.14-4.03 7.5-9 7.5a9.86 9.86 0 0 1-4.29-.97L3 21l1.91-4.38A7.17 7.17 0 0 1 3 11.5C3 7.36 7.03 4 12 4s9 3.36 9 7.5z" stroke-linecap="round" stroke-linejoin="round"/></svg><div class="empty-t">Нет чатов</div><div class="empty-d">Найди друга в поиске или поделись ссылкой</div></div>`;
+    el.innerHTML = `<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 10h8M8 14h5M21 11.5c0 4.14-4.03 7.5-9 7.5a9.86 9.86 0 0 1-4.29-.97L3 21l1.91-4.38A7.17 7.17 0 0 1 3 11.5C3 7.36 7.03 4 12 4s9 3.36 9 7.5z" stroke-linecap="round" stroke-linejoin="round"/></svg><div class="empty-t">Нет чатов</div><div class="empty-d">Найди друга через поиск или поделись ссылкой</div></div>`;
     return;
   }
   el.innerHTML = sorted.map(doc => {
@@ -748,24 +727,55 @@ document.addEventListener('touchstart', () => {
   if (audioCtx?.state==='suspended') audioCtx.resume();
 }, { once:true });
 
-// SEARCH
-function onSearch() {
+// INLINE SEARCH (in chat list)
+function onMainSearch() {
   clearTimeout(searchTimer);
-  const q=document.getElementById('search-inp').value.trim().toLowerCase();
-  if (q.length<2) { document.getElementById('search-res').innerHTML='<div class="hint"><div class="hint-icon">🔍</div>Введи никнейм для поиска</div>'; return; }
-  searchTimer=setTimeout(()=>doSearch(q),380);
+  const q = document.getElementById('main-search').value.trim().toLowerCase();
+
+  // Empty query → restore full chat list
+  if (!q) { _paintChatList(lastChatDocs); return; }
+
+  // 1. Instant: filter existing chats client-side
+  const filtered = lastChatDocs.filter(doc => {
+    const other = doc.data().participants?.find(p => p !== me?.nickname);
+    return other && other.includes(q);
+  });
+  _paintChatList(filtered);
+
+  // 2. Async: search Firestore for users not yet in chats
+  if (q.length >= 2) {
+    searchTimer = setTimeout(() => doFirestoreSearch(q, filtered), 380);
+  }
 }
-async function doSearch(q) {
-  const el=document.getElementById('search-res');
-  el.innerHTML='<div class="hint">Поиск...</div>';
+
+async function doFirestoreSearch(q, alreadyShown) {
+  // Don't overwrite if query changed while waiting
+  const current = document.getElementById('main-search').value.trim().toLowerCase();
+  if (current !== q) return;
+
   try {
-    const snap=await db.collection('users').where('nickname','>=',q).where('nickname','<=',q+'\uf8ff').limit(12).get();
-    const users=snap.docs.map(d=>d.data()).filter(u=>u.nickname!==me?.nickname);
-    if (!users.length) { el.innerHTML='<div class="hint">Никого не найдено</div>'; return; }
-    el.innerHTML=users.map(u=>`<div class="user-item" onclick="openChatFromSearch('${u.nickname}')"><div class="av lg">${u.nickname[0].toUpperCase()}</div><div class="user-nick">@${u.nickname}</div></div>`).join('');
-  } catch(e) { el.innerHTML='<div class="hint">Ошибка поиска</div>'; }
+    const snap = await db.collection('users')
+      .where('nickname','>=',q).where('nickname','<=',q+'\uf8ff').limit(10).get();
+
+    const existingNicks = new Set(
+      alreadyShown.map(doc => doc.data().participants?.find(p => p !== me?.nickname))
+    );
+    const newUsers = snap.docs.map(d=>d.data())
+      .filter(u => u.nickname !== me?.nickname && !existingNicks.has(u.nickname));
+
+    if (!newUsers.length) return;
+    // Double-check query is still the same before appending
+    if (document.getElementById('main-search').value.trim().toLowerCase() !== q) return;
+
+    const el = document.getElementById('chat-list');
+    newUsers.forEach(u => {
+      el.innerHTML += `<div class="user-item" onclick="openChat('${u.nickname}')">
+        <div class="av lg">${u.nickname[0].toUpperCase()}</div>
+        <div class="user-nick">@${u.nickname}</div>
+      </div>`;
+    });
+  } catch(e) { /* silent fail — existing chat filter already shown */ }
 }
-function openChatFromSearch(nick) { showTab('main'); openChat(nick); }
 
 // PROFILE LINK
 function copyLink() {

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="110" fill="#0d1117"/>
+  <rect width="512" height="512" rx="110" fill="url(#g)"/>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#4338ca"/>
+    </linearGradient>
+  </defs>
+  <!-- Chat bubble -->
+  <path d="M256 140c-70.7 0-128 48.1-128 107.5 0 34.2 19.3 64.8 49.7 85.1L166 380l52.8-24.7c12 3.1 24.7 4.7 37.2 4.7 70.7 0 128-48.1 128-107.5S326.7 140 256 140z"
+        fill="white" opacity="0.95"/>
+  <circle cx="208" cy="248" r="14" fill="#4338ca"/>
+  <circle cx="256" cy="248" r="14" fill="#4338ca"/>
+  <circle cx="304" cy="248" r="14" fill="#4338ca"/>
+</svg>

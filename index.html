@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#4f46e5">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Чат">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+  <title>Чат</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    :root {
+      --bg:     #0d1117;
+      --s1:     #161b22;
+      --s2:     #21262d;
+      --s3:     #30363d;
+      --accent: #6366f1;
+      --acc2:   #4f46e5;
+      --sent:   #4338ca;
+      --recv:   #21262d;
+      --text:   #e6edf3;
+      --text2:  #8b949e;
+      --green:  #3fb950;
+      --red:    #f85149;
+      --border: #30363d;
+    }
+
+    html, body { height: 100%; height: 100dvh; font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
+
+    /* SCREENS */
+    .screen { position: fixed; inset: 0; display: none; flex-direction: column; background: var(--bg); }
+    .screen.active { display: flex; }
+    #sc-chat { display: flex; transform: translateX(100%); transition: transform .28s cubic-bezier(.4,0,.2,1); z-index: 10; }
+    #sc-chat.active { transform: translateX(0); }
+    #sc-notif-prompt { justify-content: center; align-items: flex-end; padding: 24px; background: rgba(13,17,23,.9); backdrop-filter: blur(12px); z-index: 20; }
+
+    /* AUTH */
+    #sc-auth { justify-content: center; align-items: center; gap: 28px; padding: 32px 24px; }
+    .auth-logo { width: 72px; height: 72px; border-radius: 22px; background: linear-gradient(135deg, var(--accent), #818cf8); display: flex; align-items: center; justify-content: center; font-size: 36px; box-shadow: 0 8px 32px #6366f140; }
+    .auth-heading { text-align: center; }
+    .auth-heading h1 { font-size: 26px; font-weight: 700; }
+    .auth-heading p  { font-size: 14px; color: var(--text2); margin-top: 4px; }
+    .tabs { display: flex; background: var(--s1); border-radius: 12px; padding: 4px; width: 100%; max-width: 320px; }
+    .tab { flex: 1; padding: 10px; text-align: center; border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: 500; color: var(--text2); transition: all .2s; border: none; background: none; font-family: inherit; }
+    .tab.on { background: var(--accent); color: #fff; font-weight: 600; }
+    .form { display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 320px; }
+    .inp { width: 100%; padding: 13px 16px; font-size: 16px; font-family: inherit; background: var(--s1); border: 1.5px solid var(--border); border-radius: 12px; color: var(--text); outline: none; transition: border-color .2s; }
+    .inp:focus { border-color: var(--accent); }
+    .inp::placeholder { color: var(--text2); }
+    .btn { width: 100%; padding: 13px; font-size: 16px; font-weight: 600; font-family: inherit; background: var(--accent); color: #fff; border: none; border-radius: 12px; cursor: pointer; transition: opacity .2s, transform .1s; display: flex; align-items: center; justify-content: center; gap: 8px; }
+    .btn:active { transform: scale(.98); opacity: .9; }
+    .btn:disabled { opacity: .45; }
+    .err { font-size: 13px; color: var(--red); text-align: center; min-height: 16px; }
+
+    /* HEADER */
+    .hdr { display: flex; align-items: center; gap: 10px; padding: 10px 14px; padding-top: max(10px, env(safe-area-inset-top)); background: var(--s1); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    .hdr-title { font-size: 18px; font-weight: 700; flex: 1; }
+    .ibtn { width: 38px; height: 38px; border-radius: 10px; background: none; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; color: var(--text2); transition: background .15s, color .15s; }
+    .ibtn:hover, .ibtn:active { background: var(--s2); color: var(--text); }
+
+    /* BOTTOM NAV */
+    .bnav { display: flex; background: var(--s1); border-top: 1px solid var(--border); padding-bottom: env(safe-area-inset-bottom); flex-shrink: 0; }
+    .bnav-item { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 9px 8px; cursor: pointer; color: var(--text2); font-size: 11px; gap: 4px; border: none; background: none; font-family: inherit; transition: color .2s; position: relative; }
+    .bnav-item.on { color: var(--accent); }
+    .bnav-item svg { width: 22px; height: 22px; }
+
+    /* UNREAD BADGE */
+    .badge { position: absolute; top: 5px; right: calc(50% - 20px); min-width: 18px; height: 18px; border-radius: 9px; background: var(--red); color: #fff; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; padding: 0 4px; border: 2px solid var(--s1); animation: pop .2s cubic-bezier(.34,1.56,.64,1); }
+    @keyframes pop { from { transform: scale(0); } to { transform: scale(1); } }
+
+    /* CHAT LIST */
+    .list { flex: 1; overflow-y: auto; overscroll-behavior: contain; }
+    .ci { display: flex; align-items: center; padding: 12px 14px; gap: 12px; cursor: pointer; border-bottom: 1px solid var(--border); transition: background .12s; }
+    .ci:active { background: var(--s1); }
+    .ci-info { flex: 1; min-width: 0; }
+    .ci-name { font-size: 16px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ci-prev { font-size: 13px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+    .ci-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
+    .ci-time { font-size: 12px; color: var(--text2); }
+    .ci-unread { min-width: 20px; height: 20px; border-radius: 10px; background: var(--accent); color: #fff; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; padding: 0 5px; }
+
+    /* AVATAR */
+    .av { border-radius: 50%; background: linear-gradient(135deg, var(--accent), #818cf8); display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; flex-shrink: 0; }
+    .av.lg { width: 48px; height: 48px; font-size: 18px; }
+    .av.sm { width: 36px; height: 36px; font-size: 15px; }
+    .av.xl { width: 84px; height: 84px; font-size: 36px; }
+
+    /* CHAT */
+    .chat-hdr-info { flex: 1; min-width: 0; }
+    .chat-hdr-name { font-size: 16px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .chat-status { font-size: 12px; color: var(--text2); height: 15px; transition: color .2s; }
+    .chat-status.typing { color: var(--accent); }
+    .msgs { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 10px 12px; display: flex; flex-direction: column; gap: 3px; }
+    .msg { max-width: 78%; padding: 8px 11px 5px; border-radius: 16px; font-size: 15px; line-height: 1.45; word-break: break-word; animation: fadeUp .18s ease; }
+    @keyframes fadeUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+    .msg.sent { background: var(--sent); align-self: flex-end; border-bottom-right-radius: 4px; }
+    .msg.recv { background: var(--recv); align-self: flex-start; border-bottom-left-radius: 4px; }
+    .msg-time { font-size: 10px; opacity: .55; text-align: right; margin-top: 3px; }
+    .date-sep { align-self: center; background: var(--s2); color: var(--text2); font-size: 12px; padding: 3px 12px; border-radius: 8px; margin: 6px 0; }
+    .input-area { display: flex; align-items: flex-end; gap: 8px; padding: 8px 12px; padding-bottom: max(8px, env(safe-area-inset-bottom)); background: var(--s1); border-top: 1px solid var(--border); flex-shrink: 0; }
+    .msg-inp { flex: 1; background: var(--s2); border: none; border-radius: 20px; padding: 10px 16px; font-size: 16px; font-family: inherit; color: var(--text); outline: none; resize: none; max-height: 130px; min-height: 42px; line-height: 1.4; }
+    .msg-inp::placeholder { color: var(--text2); }
+    .send-btn { width: 42px; height: 42px; border-radius: 50%; border: none; background: var(--accent); cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center; transition: transform .1s, opacity .2s; box-shadow: 0 2px 12px #6366f150; }
+    .send-btn:active { transform: scale(.9); }
+
+    /* SEARCH */
+    .search-wrap { padding: 10px 14px; background: var(--s1); border-bottom: 1px solid var(--border); }
+    .search-inp { width: 100%; background: var(--s2); border: 1.5px solid var(--border); border-radius: 10px; padding: 10px 14px; font-size: 16px; font-family: inherit; color: var(--text); outline: none; transition: border-color .2s; }
+    .search-inp:focus { border-color: var(--accent); }
+    .search-inp::placeholder { color: var(--text2); }
+    .hint { padding: 48px 24px; text-align: center; color: var(--text2); font-size: 15px; }
+    .hint-icon { font-size: 44px; margin-bottom: 10px; }
+    .user-item { display: flex; align-items: center; padding: 12px 14px; gap: 12px; cursor: pointer; border-bottom: 1px solid var(--border); transition: background .12s; }
+    .user-item:active { background: var(--s1); }
+    .user-nick { font-size: 16px; font-weight: 600; }
+
+    /* PROFILE */
+    .profile-body { flex: 1; overflow-y: auto; padding: 28px 20px; display: flex; flex-direction: column; align-items: center; gap: 20px; }
+    .profile-nick { font-family: 'JetBrains Mono', monospace; font-size: 20px; }
+    .card { width: 100%; background: var(--s1); border-radius: 14px; border: 1px solid var(--border); overflow: hidden; }
+    .card-label { font-size: 11px; text-transform: uppercase; letter-spacing: .8px; color: var(--text2); padding: 12px 16px 6px; }
+    .card-link { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--accent); padding: 0 16px 12px; word-break: break-all; }
+    .card-btn { width: 100%; padding: 13px 16px; background: var(--s2); border: none; border-top: 1px solid var(--border); color: var(--text); font-size: 15px; font-family: inherit; cursor: pointer; text-align: left; transition: background .15s; display: flex; align-items: center; justify-content: space-between; }
+    .card-btn:first-of-type { border-top: none; }
+    .card-btn:active { background: var(--s3); }
+    .toggle { width: 44px; height: 26px; border-radius: 13px; background: var(--s3); position: relative; transition: background .2s; flex-shrink: 0; pointer-events: none; }
+    .toggle.on { background: var(--accent); }
+    .toggle::after { content: ''; position: absolute; width: 20px; height: 20px; border-radius: 50%; background: #fff; top: 3px; left: 3px; transition: transform .2s; }
+    .toggle.on::after { transform: translateX(18px); }
+    .logout-btn { width: 100%; padding: 13px; font-size: 15px; font-weight: 600; font-family: inherit; background: transparent; border: 1.5px solid var(--red); border-radius: 12px; color: var(--red); cursor: pointer; transition: background .15s; }
+    .logout-btn:active { background: #f8514915; }
+
+    /* NOTIFICATION PROMPT */
+    .notif-card { background: var(--s1); border: 1px solid var(--border); border-radius: 20px; padding: 24px; width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 16px; }
+    .notif-icon { font-size: 44px; text-align: center; }
+    .notif-title { font-size: 18px; font-weight: 700; text-align: center; }
+    .notif-desc { font-size: 14px; color: var(--text2); text-align: center; line-height: 1.5; }
+    .notif-actions { display: flex; gap: 10px; }
+    .btn-sec { flex: 1; padding: 12px; border-radius: 10px; border: 1.5px solid var(--border); background: none; color: var(--text2); font-family: inherit; font-size: 15px; cursor: pointer; }
+
+    /* EMPTY STATE */
+    .empty { padding: 70px 24px; text-align: center; color: var(--text2); display: flex; flex-direction: column; align-items: center; gap: 8px; }
+    .empty svg { width: 52px; height: 52px; opacity: .3; margin-bottom: 4px; }
+    .empty-t { font-size: 17px; font-weight: 600; color: var(--text); }
+    .empty-d { font-size: 14px; }
+
+    /* PWA TOAST */
+    #pwa-toast { position: fixed; z-index: 100; bottom: 90px; left: 16px; right: 16px; background: var(--s1); border: 1px solid var(--border); border-radius: 16px; padding: 16px; box-shadow: 0 8px 40px rgba(0,0,0,.6); display: flex; gap: 14px; align-items: flex-start; transform: translateY(180px); opacity: 0; transition: transform .4s cubic-bezier(.34,1.56,.64,1), opacity .3s; }
+    #pwa-toast.show { transform: translateY(0); opacity: 1; }
+    .pwa-ico { font-size: 34px; line-height: 1; flex-shrink: 0; }
+    .pwa-txt { flex: 1; }
+    .pwa-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .pwa-desc { font-size: 13px; color: var(--text2); line-height: 1.4; }
+    .pwa-acts { display: flex; gap: 8px; margin-top: 12px; }
+    .pwa-ok { flex: 1; padding: 9px; border-radius: 8px; border: none; background: var(--accent); color: #fff; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .pwa-no { flex: 1; padding: 9px; border-radius: 8px; border: none; background: var(--s2); color: var(--text2); font-family: inherit; font-size: 14px; cursor: pointer; }
+
+    /* SNACKBAR */
+    #snackbar { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--s2); color: var(--text); padding: 10px 20px; border-radius: 10px; font-size: 14px; z-index: 200; transition: transform .3s, opacity .3s; opacity: 0; white-space: nowrap; border: 1px solid var(--border); }
+    #snackbar.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+    /* SPINNER */
+    .spin { width: 18px; height: 18px; border-radius: 50%; border: 2px solid rgba(255,255,255,.3); border-top-color: #fff; animation: rot .7s linear infinite; }
+    @keyframes rot { to { transform: rotate(360deg); } }
+
+    ::-webkit-scrollbar { width: 0; }
+  </style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="sc-auth" class="screen active">
+  <div class="auth-logo">💬</div>
+  <div class="auth-heading">
+    <h1>Чат</h1>
+    <p>Просто войди и общайся</p>
+  </div>
+  <div class="tabs">
+    <button class="tab on" id="tab-login"  onclick="switchAuthMode('login')">Войти</button>
+    <button class="tab"    id="tab-reg"    onclick="switchAuthMode('register')">Регистрация</button>
+  </div>
+  <div class="form">
+    <input class="inp" id="a-nick" type="text"     placeholder="Никнейм" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="20">
+    <input class="inp" id="a-pass" type="password" placeholder="Пароль" maxlength="50">
+    <div class="err" id="a-err"></div>
+    <button class="btn" id="a-btn" onclick="doAuth()">Войти</button>
+  </div>
+</div>
+
+<!-- NOTIFICATION PERMISSION PROMPT -->
+<div id="sc-notif-prompt" class="screen">
+  <div class="notif-card">
+    <div class="notif-icon">🔔</div>
+    <div class="notif-title">Включить уведомления?</div>
+    <div class="notif-desc">Получай уведомления о новых сообщениях, даже когда приложение свёрнуто</div>
+    <div class="notif-actions">
+      <button class="btn-sec" onclick="skipNotif()">Не сейчас</button>
+      <button class="btn" onclick="allowNotif()" style="flex:1">Включить</button>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN — CHAT LIST -->
+<div id="sc-main" class="screen">
+  <div class="hdr"><div class="hdr-title">Чаты</div></div>
+  <div class="list" id="chat-list">
+    <div class="empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 10h8M8 14h5M21 11.5c0 4.14-4.03 7.5-9 7.5a9.86 9.86 0 0 1-4.29-.97L3 21l1.91-4.38A7.17 7.17 0 0 1 3 11.5C3 7.36 7.03 4 12 4s9 3.36 9 7.5z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="empty-t">Нет чатов</div>
+      <div class="empty-d">Найди друга в поиске или поделись ссылкой</div>
+    </div>
+  </div>
+  <div class="bnav">
+    <button class="bnav-item on" data-nav="main" onclick="showTab('main')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 10h8M8 14h5M21 11.5c0 4.14-4.03 7.5-9 7.5a9.86 9.86 0 0 1-4.29-.97L3 21l1.91-4.38A7.17 7.17 0 0 1 3 11.5C3 7.36 7.03 4 12 4s9 3.36 9 7.5z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Чаты
+      <span class="badge" id="total-badge" style="display:none"></span>
+    </button>
+    <button class="bnav-item" data-nav="search" onclick="showTab('search')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35" stroke-linecap="round"/></svg>
+      Поиск
+    </button>
+    <button class="bnav-item" data-nav="profile" onclick="showTab('profile')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.58-7 8-7s8 3 8 7" stroke-linecap="round"/></svg>
+      Профиль
+    </button>
+  </div>
+</div>
+
+<!-- SEARCH -->
+<div id="sc-search" class="screen">
+  <div class="hdr"><div class="hdr-title">Поиск людей</div></div>
+  <div class="search-wrap">
+    <input class="search-inp" id="search-inp" type="text" placeholder="Введи никнейм..." autocomplete="off" autocapitalize="none" spellcheck="false" oninput="onSearch()">
+  </div>
+  <div class="list" id="search-res">
+    <div class="hint"><div class="hint-icon">🔍</div>Введи никнейм для поиска</div>
+  </div>
+  <div class="bnav">
+    <button class="bnav-item" data-nav="main" onclick="showTab('main')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 10h8M8 14h5M21 11.5c0 4.14-4.03 7.5-9 7.5a9.86 9.86 0 0 1-4.29-.97L3 21l1.91-4.38A7.17 7.17 0 0 1 3 11.5C3 7.36 7.03 4 12 4s9 3.36 9 7.5z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Чаты
+    </button>
+    <button class="bnav-item on" data-nav="search" onclick="showTab('search')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35" stroke-linecap="round"/></svg>
+      Поиск
+    </button>
+    <button class="bnav-item" data-nav="profile" onclick="showTab('profile')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.58-7 8-7s8 3 8 7" stroke-linecap="round"/></svg>
+      Профиль
+    </button>
+  </div>
+</div>
+
+<!-- PROFILE -->
+<div id="sc-profile" class="screen">
+  <div class="hdr"><div class="hdr-title">Профиль</div></div>
+  <div class="profile-body">
+    <div class="av xl" id="p-av"></div>
+    <div class="profile-nick" id="p-nick"></div>
+
+    <div class="card">
+      <div class="card-label">Твоя ссылка для друзей</div>
+      <div class="card-link" id="p-link"></div>
+      <button class="card-btn" onclick="copyLink()">📋 Скопировать ссылку</button>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Уведомления</div>
+      <button class="card-btn" style="border-top:none" onclick="toggleSetting('notif')">
+        <span>🔔 Push-уведомления</span>
+        <div class="toggle" id="tog-notif"></div>
+      </button>
+      <button class="card-btn" onclick="toggleSetting('sound')">
+        <span>🔊 Звук</span>
+        <div class="toggle" id="tog-sound"></div>
+      </button>
+      <button class="card-btn" onclick="toggleSetting('vibro')">
+        <span>📳 Вибрация</span>
+        <div class="toggle" id="tog-vibro"></div>
+      </button>
+    </div>
+
+    <button class="logout-btn" onclick="doLogout()">Выйти из аккаунта</button>
+  </div>
+  <div class="bnav">
+    <button class="bnav-item" data-nav="main" onclick="showTab('main')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 10h8M8 14h5M21 11.5c0 4.14-4.03 7.5-9 7.5a9.86 9.86 0 0 1-4.29-.97L3 21l1.91-4.38A7.17 7.17 0 0 1 3 11.5C3 7.36 7.03 4 12 4s9 3.36 9 7.5z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Чаты
+    </button>
+    <button class="bnav-item" data-nav="search" onclick="showTab('search')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35" stroke-linecap="round"/></svg>
+      Поиск
+    </button>
+    <button class="bnav-item on" data-nav="profile" onclick="showTab('profile')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.58-7 8-7s8 3 8 7" stroke-linecap="round"/></svg>
+      Профиль
+    </button>
+  </div>
+</div>
+
+<!-- CHAT -->
+<div id="sc-chat" class="screen">
+  <div class="hdr">
+    <button class="ibtn" onclick="closeChat()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="22" height="22"><path d="M19 12H5M12 5l-7 7 7 7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="av sm" id="c-av"></div>
+    <div class="chat-hdr-info">
+      <div class="chat-hdr-name" id="c-name"></div>
+      <div class="chat-status" id="c-status"></div>
+    </div>
+  </div>
+  <div class="msgs" id="msgs"></div>
+  <div class="input-area">
+    <textarea class="msg-inp" id="msg-inp" placeholder="Сообщение..." rows="1" onkeydown="onMsgKey(event)" oninput="onTyping(this)"></textarea>
+    <button class="send-btn" onclick="sendMsg()">
+      <svg viewBox="0 0 24 24" fill="white" width="20" height="20"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- PWA TOAST -->
+<div id="pwa-toast">
+  <div class="pwa-ico">📲</div>
+  <div class="pwa-txt">
+    <div class="pwa-title">Установить приложение</div>
+    <div class="pwa-desc" id="pwa-desc">Добавь чат на экран телефона для быстрого доступа</div>
+    <div class="pwa-acts">
+      <button class="pwa-ok" onclick="installPWA()">Установить</button>
+      <button class="pwa-no" onclick="dismissPWA()">Не сейчас</button>
+    </div>
+  </div>
+</div>
+
+<div id="snackbar"></div>
+
+<!-- FIREBASE -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+// ╔══════════════════════════════════════════════════════╗
+// ║  🔥 ВСТАВЬ СВОЙ FIREBASE КОНФИГ СЮДА               ║
+// ╚══════════════════════════════════════════════════════╝
+const firebaseConfig = {
+  apiKey:            "AIzaSyDXvtgGSgEkPTSlghPzLL_PyFC2MVpVAVE",
+  authDomain:        "my-messenger-b2f6e.firebaseapp.com",
+  projectId:         "my-messenger-b2f6e",
+  storageBucket:     "my-messenger-b2f6e.firebasestorage.app",
+  messagingSenderId: "964983478248",
+  appId:             "1:964983478248:web:d156bc692bce9729c9f65d"
+};
+// ══════════════════════════════════════════════════════
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// STATE
+let me            = null;
+let curTab        = 'main';
+let chatWith      = null;
+let chatId        = null;
+let unsubMsgs     = null;
+let unsubTyping   = null;
+let unsubChats    = null;
+let typingTimer   = null;
+let amTyping      = false;
+let deferredPWA   = null;
+let searchTimer   = null;
+let prevChatTs    = {};      // chatId -> updatedAt.seconds
+let firstLoad     = true;
+let unreadCounts  = {};      // chatId -> number
+
+// SETTINGS
+let settings = { notif: true, sound: true, vibro: true,
+  ...JSON.parse(localStorage.getItem('settings') || '{}') };
+const saveSett = () => localStorage.setItem('settings', JSON.stringify(settings));
+
+// SERVICE WORKER
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').then(() => {
+    navigator.serviceWorker.addEventListener('message', e => {
+      if (e.data?.type === 'openChat' && e.data.chat) {
+        if (me) openChat(e.data.chat);
+        else sessionStorage.setItem('pendingChat', e.data.chat);
+      }
+    });
+  }).catch(() => {});
+}
+
+// PWA
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPWA = e; schedulePWAToast(); });
+if (isIOS && !isStandalone) schedulePWAToast();
+
+function schedulePWAToast() {
+  if (localStorage.getItem('pwa-done')) return;
+  setTimeout(() => {
+    if (isIOS) {
+      document.getElementById('pwa-desc').textContent = 'Нажми Share (↑) → «Добавить на экран "Домой"»';
+      document.querySelector('.pwa-ok').onclick = dismissPWA;
+      document.querySelector('.pwa-ok').textContent = 'Понятно';
+    }
+    document.getElementById('pwa-toast').classList.add('show');
+  }, 5000);
+}
+function installPWA() { if (deferredPWA) { deferredPWA.prompt(); deferredPWA.userChoice.then(() => deferredPWA = null); } dismissPWA(); }
+function dismissPWA() { document.getElementById('pwa-toast').classList.remove('show'); localStorage.setItem('pwa-done','1'); }
+
+// SNACKBAR
+function snack(msg) {
+  const el = document.getElementById('snackbar');
+  el.textContent = msg; el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2400);
+}
+
+// BOOT
+(function boot() {
+  const saved = localStorage.getItem('me');
+  if (saved) {
+    try { me = JSON.parse(saved); } catch(e) { localStorage.removeItem('me'); return; }
+    unreadCounts = JSON.parse(localStorage.getItem('unread') || '{}');
+    enterApp();
+  }
+  const target = new URLSearchParams(location.search).get('chat');
+  if (target) sessionStorage.setItem('pendingChat', target);
+})();
+
+// AUTH
+let authMode = 'login';
+function switchAuthMode(m) {
+  authMode = m;
+  document.getElementById('tab-login').classList.toggle('on', m==='login');
+  document.getElementById('tab-reg').classList.toggle('on', m==='register');
+  document.getElementById('a-btn').textContent = m==='login' ? 'Войти' : 'Зарегистрироваться';
+  document.getElementById('a-err').textContent = '';
+}
+
+async function doAuth() {
+  const nick = document.getElementById('a-nick').value.trim().toLowerCase();
+  const pass = document.getElementById('a-pass').value;
+  const errEl = document.getElementById('a-err');
+  const btn   = document.getElementById('a-btn');
+  errEl.textContent = '';
+  if (!nick)           { errEl.textContent = 'Введи никнейм'; return; }
+  if (nick.length < 3) { errEl.textContent = 'Никнейм — минимум 3 символа'; return; }
+  if (!/^[a-z0-9_]+$/.test(nick)) { errEl.textContent = 'Только латиница, цифры и _'; return; }
+  if (!pass)           { errEl.textContent = 'Введи пароль'; return; }
+  if (pass.length < 4) { errEl.textContent = 'Пароль — минимум 4 символа'; return; }
+  btn.disabled = true; btn.innerHTML = '<div class="spin"></div>';
+  try {
+    if (authMode === 'login') await login(nick, pass);
+    else await register(nick, pass);
+    if (Notification.permission === 'default' && !localStorage.getItem('notif-asked')) {
+      localStorage.setItem('notif-asked', '1');
+      document.getElementById('sc-auth').classList.remove('active');
+      document.getElementById('sc-notif-prompt').classList.add('active');
+    } else {
+      enterApp();
+    }
+  } catch(e) {
+    errEl.textContent = e.message;
+    btn.disabled = false;
+    btn.textContent = authMode==='login' ? 'Войти' : 'Зарегистрироваться';
+  }
+}
+
+async function register(nick, pass) {
+  const ref = db.collection('users').doc(nick);
+  if ((await ref.get()).exists) throw new Error('Никнейм уже занят');
+  await ref.set({ nickname: nick, password: pass, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+  me = { nickname: nick }; localStorage.setItem('me', JSON.stringify(me));
+}
+
+async function login(nick, pass) {
+  const snap = await db.collection('users').doc(nick).get();
+  if (!snap.exists) throw new Error('Пользователь не найден');
+  if (snap.data().password !== pass) throw new Error('Неверный пароль');
+  me = { nickname: nick }; localStorage.setItem('me', JSON.stringify(me));
+}
+
+function doLogout() {
+  if (!confirm('Выйти?')) return;
+  [unsubChats, unsubMsgs, unsubTyping].forEach(u => u && u());
+  me = null; localStorage.removeItem('me'); localStorage.removeItem('unread');
+  location.href = location.pathname;
+}
+
+// NOTIFICATION PROMPT
+async function allowNotif() {
+  document.getElementById('sc-notif-prompt').classList.remove('active');
+  await Notification.requestPermission();
+  enterApp();
+}
+function skipNotif() {
+  document.getElementById('sc-notif-prompt').classList.remove('active');
+  enterApp();
+}
+
+// ENTER APP
+function enterApp() {
+  document.getElementById('sc-auth').classList.remove('active');
+  document.getElementById('sc-notif-prompt').classList.remove('active');
+  updateProfileUI(); refreshToggles(); updateBadges();
+  showTab(curTab); subscribeChats();
+  const pending = sessionStorage.getItem('pendingChat');
+  if (pending) { sessionStorage.removeItem('pendingChat'); setTimeout(() => openChat(pending), 200); }
+}
+
+function updateProfileUI() {
+  if (!me) return;
+  document.getElementById('p-av').textContent   = me.nickname[0].toUpperCase();
+  document.getElementById('p-nick').textContent = '@' + me.nickname;
+  document.getElementById('p-link').textContent = location.origin + location.pathname + '?chat=' + me.nickname;
+}
+
+// SETTINGS
+function toggleSetting(key) {
+  settings[key] = !settings[key]; saveSett(); refreshToggles();
+  if (key === 'notif' && settings.notif && Notification.permission === 'default')
+    Notification.requestPermission();
+}
+function refreshToggles() {
+  ['notif','sound','vibro'].forEach(k => document.getElementById('tog-' + k)?.classList.toggle('on', !!settings[k]));
+}
+
+// TABS
+function showTab(tab) {
+  curTab = tab;
+  ['main','search','profile'].forEach(t => document.getElementById('sc-' + t).classList.toggle('active', t===tab));
+  document.querySelectorAll('.bnav-item').forEach(el => el.classList.toggle('on', el.dataset.nav===tab));
+  if (tab==='search') setTimeout(() => document.getElementById('search-inp').focus(), 120);
+}
+
+// UNREAD
+const saveUnread = () => localStorage.setItem('unread', JSON.stringify(unreadCounts));
+
+function addUnread(cid) { unreadCounts[cid] = (unreadCounts[cid]||0)+1; saveUnread(); updateBadges(); }
+function clearUnread(cid) { delete unreadCounts[cid]; saveUnread(); updateBadges(); }
+function updateBadges() {
+  const total = Object.values(unreadCounts).reduce((a,b)=>a+b,0);
+  const badge = document.getElementById('total-badge');
+  if (total>0) { badge.textContent = total>99?'99+':total; badge.style.display='flex'; }
+  else badge.style.display='none';
+  document.title = total>0 ? `(${total}) Чат` : 'Чат';
+}
+
+// CHATS LIST
+function subscribeChats() {
+  if (unsubChats) unsubChats();
+  if (!me) return;
+  firstLoad = true;
+
+  unsubChats = db.collection('chats')
+    .where('participants','array-contains', me.nickname)
+    .onSnapshot(snap => {
+      if (firstLoad) {
+        snap.docs.forEach(doc => { prevChatTs[doc.id] = doc.data().updatedAt?.seconds||0; });
+        firstLoad = false;
+      } else {
+        snap.docChanges().forEach(ch => {
+          if (ch.type==='added'||ch.type==='modified') {
+            const d = ch.doc.data(), cid = ch.doc.id;
+            const newTs = d.updatedAt?.seconds||0, oldTs = prevChatTs[cid]||0;
+            if (newTs>oldTs && d.lastFrom && d.lastFrom!==me.nickname) {
+              const other = d.participants.find(p=>p!==me.nickname);
+              const isOpenVisible = chatWith===other && document.visibilityState==='visible';
+              if (!isOpenVisible) { addUnread(cid); triggerNotification(other, d.lastMessage||''); }
+            }
+            prevChatTs[cid] = newTs;
+          }
+        });
+      }
+      renderChatList(snap.docs);
+    });
+}
+
+function renderChatList(docs) {
+  const sorted = [...docs].sort((a,b)=>(b.data().updatedAt?.seconds||0)-(a.data().updatedAt?.seconds||0));
+  const el = document.getElementById('chat-list');
+  if (!sorted.length) {
+    el.innerHTML = `<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 10h8M8 14h5M21 11.5c0 4.14-4.03 7.5-9 7.5a9.86 9.86 0 0 1-4.29-.97L3 21l1.91-4.38A7.17 7.17 0 0 1 3 11.5C3 7.36 7.03 4 12 4s9 3.36 9 7.5z" stroke-linecap="round" stroke-linejoin="round"/></svg><div class="empty-t">Нет чатов</div><div class="empty-d">Найди друга в поиске или поделись ссылкой</div></div>`;
+    return;
+  }
+  el.innerHTML = sorted.map(doc => {
+    const d=doc.data(), other=d.participants.find(p=>p!==me.nickname);
+    const uc=unreadCounts[doc.id]||0;
+    return `<div class="ci" onclick="openChat('${other}')">
+      <div class="av lg">${other[0].toUpperCase()}</div>
+      <div class="ci-info">
+        <div class="ci-name" style="${uc?'font-weight:700':''}">@${other}</div>
+        <div class="ci-prev">${d.lastFrom===me.nickname?'✓ ':''}${esc(d.lastMessage||'')}</div>
+      </div>
+      <div class="ci-right">
+        <div class="ci-time">${d.updatedAt?fmtTime(d.updatedAt.toDate()):''}</div>
+        ${uc?`<div class="ci-unread">${uc>99?'99+':uc}</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// OPEN CHAT
+function openChat(other) {
+  if (!me) return;
+  if (other===me.nickname) { snack('Нельзя писать самому себе'); return; }
+  chatWith = other;
+  chatId   = [me.nickname, other].sort().join('__');
+  document.getElementById('c-av').textContent     = other[0].toUpperCase();
+  document.getElementById('c-name').textContent   = '@' + other;
+  document.getElementById('c-status').textContent = '';
+  document.getElementById('c-status').className   = 'chat-status';
+  document.getElementById('msgs').innerHTML        = '';
+  document.getElementById('msg-inp').value         = '';
+  clearUnread(chatId);
+  document.getElementById('sc-chat').classList.add('active');
+  history.pushState({ chat: other }, '');
+
+  if (unsubMsgs) unsubMsgs();
+  unsubMsgs = db.collection('chats').doc(chatId).collection('messages')
+    .orderBy('timestamp','asc').onSnapshot(snap => {
+      renderMsgs(snap.docs);
+      if (document.visibilityState==='visible') clearUnread(chatId);
+    });
+
+  if (unsubTyping) unsubTyping();
+  unsubTyping = db.collection('typing').doc(chatId+'_'+other).onSnapshot(snap => {
+    const st=document.getElementById('c-status');
+    if (snap.exists && snap.data().isTyping) { st.textContent='печатает...'; st.className='chat-status typing'; }
+    else { st.textContent=''; st.className='chat-status'; }
+  });
+
+  setTimeout(() => document.getElementById('msg-inp').focus(), 350);
+}
+
+function closeChat() {
+  clearTypingState();
+  if (unsubMsgs)   { unsubMsgs();   unsubMsgs=null; }
+  if (unsubTyping) { unsubTyping(); unsubTyping=null; }
+  document.getElementById('sc-chat').classList.remove('active');
+  chatWith=null; chatId=null;
+}
+
+window.addEventListener('popstate', () => { if (chatWith) closeChat(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState==='visible' && chatWith && chatId) clearUnread(chatId);
+});
+
+// RENDER MESSAGES
+function renderMsgs(docs) {
+  const c = document.getElementById('msgs');
+  let lastDate='', html='';
+  docs.forEach(doc => {
+    const d=doc.data(), sent=d.from===me.nickname;
+    const ts=d.timestamp?d.timestamp.toDate():new Date();
+    const date=ts.toLocaleDateString('ru-RU',{day:'numeric',month:'long'});
+    const time=ts.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+    if (date!==lastDate) { html+=`<div class="date-sep">${date}</div>`; lastDate=date; }
+    html+=`<div class="msg ${sent?'sent':'recv'}">${esc(d.text)}<div class="msg-time">${time}</div></div>`;
+  });
+  c.innerHTML=html; c.scrollTop=c.scrollHeight;
+}
+
+// SEND
+async function sendMsg() {
+  const inp=document.getElementById('msg-inp'), text=inp.value.trim();
+  if (!text||!chatId) return;
+  inp.value=''; inp.style.height='auto'; clearTypingState();
+  const batch=db.batch();
+  batch.set(db.collection('chats').doc(chatId).collection('messages').doc(),{
+    from:me.nickname, text, timestamp:firebase.firestore.FieldValue.serverTimestamp()
+  });
+  batch.set(db.collection('chats').doc(chatId),{
+    participants:[me.nickname,chatWith], lastMessage:text, lastFrom:me.nickname,
+    updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+  },{merge:true});
+  await batch.commit().catch(console.error);
+}
+function onMsgKey(e) { if (e.key==='Enter'&&!e.shiftKey) { e.preventDefault(); sendMsg(); } }
+document.getElementById('msg-inp').addEventListener('input', function() {
+  this.style.height='auto'; this.style.height=Math.min(this.scrollHeight,130)+'px';
+});
+
+// TYPING
+function onTyping() {
+  if (!chatId||!me) return;
+  if (!amTyping) {
+    amTyping=true;
+    db.collection('typing').doc(chatId+'_'+me.nickname).set({isTyping:true,updatedAt:firebase.firestore.FieldValue.serverTimestamp()}).catch(()=>{});
+  }
+  clearTimeout(typingTimer);
+  typingTimer=setTimeout(clearTypingState,2500);
+}
+function clearTypingState() {
+  if (!amTyping) return; amTyping=false; clearTimeout(typingTimer);
+  if (chatId&&me) db.collection('typing').doc(chatId+'_'+me.nickname).set({isTyping:false,updatedAt:firebase.firestore.FieldValue.serverTimestamp()}).catch(()=>{});
+}
+
+// ═══════════════════════════════════════════════════════
+// NOTIFICATIONS
+// ═══════════════════════════════════════════════════════
+function triggerNotification(fromNick, text) {
+  // 1. Sound
+  if (settings.sound) playBeep();
+  // 2. Vibration
+  if (settings.vibro && navigator.vibrate) navigator.vibrate([80,40,80]);
+  // 3. Browser push notification (only when tab is hidden)
+  if (!settings.notif || Notification.permission!=='granted') return;
+  if (document.visibilityState==='visible') return;
+  const body = text.length>100 ? text.slice(0,100)+'…' : text;
+  // Try via Service Worker (shows even when tab is in background)
+  navigator.serviceWorker.ready.then(reg => {
+    reg.showNotification('@'+fromNick, {
+      body, icon:'./icon.svg', badge:'./icon.svg',
+      tag:'msg-'+fromNick, renotify:true, vibrate:[100,50,100],
+      data:{ chat: fromNick }
+    });
+  }).catch(() => {
+    // Fallback: basic Notification API
+    try { new Notification('@'+fromNick, { body, icon:'./icon.svg' }); } catch(e) {}
+  });
+}
+
+// Web Audio beep — no audio file needed
+let audioCtx = null;
+function playBeep() {
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    if (audioCtx.state==='suspended') audioCtx.resume();
+    const osc=audioCtx.createOscillator(), gain=audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.type='sine'; osc.frequency.value=880;
+    const t=audioCtx.currentTime;
+    gain.gain.setValueAtTime(0,t);
+    gain.gain.linearRampToValueAtTime(0.25,t+0.015);
+    gain.gain.exponentialRampToValueAtTime(0.001,t+0.35);
+    osc.start(t); osc.stop(t+0.35);
+  } catch(e) {}
+}
+// Unlock AudioContext on first tap (required on iOS)
+document.addEventListener('touchstart', () => {
+  if (audioCtx?.state==='suspended') audioCtx.resume();
+}, { once:true });
+
+// SEARCH
+function onSearch() {
+  clearTimeout(searchTimer);
+  const q=document.getElementById('search-inp').value.trim().toLowerCase();
+  if (q.length<2) { document.getElementById('search-res').innerHTML='<div class="hint"><div class="hint-icon">🔍</div>Введи никнейм для поиска</div>'; return; }
+  searchTimer=setTimeout(()=>doSearch(q),380);
+}
+async function doSearch(q) {
+  const el=document.getElementById('search-res');
+  el.innerHTML='<div class="hint">Поиск...</div>';
+  try {
+    const snap=await db.collection('users').where('nickname','>=',q).where('nickname','<=',q+'\uf8ff').limit(12).get();
+    const users=snap.docs.map(d=>d.data()).filter(u=>u.nickname!==me?.nickname);
+    if (!users.length) { el.innerHTML='<div class="hint">Никого не найдено</div>'; return; }
+    el.innerHTML=users.map(u=>`<div class="user-item" onclick="openChatFromSearch('${u.nickname}')"><div class="av lg">${u.nickname[0].toUpperCase()}</div><div class="user-nick">@${u.nickname}</div></div>`).join('');
+  } catch(e) { el.innerHTML='<div class="hint">Ошибка поиска</div>'; }
+}
+function openChatFromSearch(nick) { showTab('main'); openChat(nick); }
+
+// PROFILE LINK
+function copyLink() {
+  navigator.clipboard.writeText(location.origin+location.pathname+'?chat='+me.nickname).then(()=>snack('✅ Ссылка скопирована'));
+}
+
+// UTILS
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fmtTime(d) {
+  const now=new Date();
+  if (d.toDateString()===now.toDateString()) return d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+  if (now-d<7*86400000) return d.toLocaleDateString('ru-RU',{weekday:'short'});
+  return d.toLocaleDateString('ru-RU',{day:'numeric',month:'short'});
+}
+
+document.getElementById('a-nick').addEventListener('keydown',e=>{ if(e.key==='Enter') document.getElementById('a-pass').focus(); });
+document.getElementById('a-pass').addEventListener('keydown',e=>{ if(e.key==='Enter') doAuth(); });
+</script>
+</body>
+</html>
